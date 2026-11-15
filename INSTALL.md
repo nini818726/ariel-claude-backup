@@ -12,11 +12,11 @@
 
 ## 2. 装插件
 ```bash
-claude plugin marketplace add kkkariel888/ariel-claude-backup
+claude plugin marketplace add nini818726/ariel-claude-backup
 claude plugin install ariel-claude-backup@ariel-claude-backup
 ```
 跑不了 `claude` 命令时，把这两行发给用户在 Code 页输入（前面加 `/`）：
-`/plugin marketplace add kkkariel888/ariel-claude-backup`、`/plugin install ariel-claude-backup@ariel-claude-backup`。
+`/plugin marketplace add nini818726/ariel-claude-backup`、`/plugin install ariel-claude-backup@ariel-claude-backup`。
 然后请用户打开自动更新：`/plugin` → Marketplaces → ariel-claude-backup → Enable auto-update。
 
 ## 3. 开始备份 / 恢复
