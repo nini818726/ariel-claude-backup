@@ -11,15 +11,15 @@
 <img alt="版本" src="https://img.shields.io/badge/version-1.0.1-blue?style=flat-square">
 <img alt="Claude" src="https://img.shields.io/badge/Claude-桌面%20app%20Code%20页-D97757?style=flat-square">
 <img alt="macOS" src="https://img.shields.io/badge/系统-macOS-000000?style=flat-square">
-<img alt="License" src="https://img.shields.io/github/license/kkkariel888/ariel-claude-backup?style=flat-square">
-<img alt="Stars" src="https://img.shields.io/github/stars/kkkariel888/ariel-claude-backup?style=flat-square">
+<img alt="License" src="https://img.shields.io/github/license/nini818726/ariel-claude-backup?style=flat-square">
+<img alt="Stars" src="https://img.shields.io/github/stars/nini818726/ariel-claude-backup?style=flat-square">
 </p>
 
 <p>
 <a href="#快速开始">快速开始</a> ·
 <a href="#它是怎么工作的">工作流程</a> ·
 <a href="#常见问题">常见问题</a> ·
-<a href="https://github.com/kkkariel888/ariel-claude-backup/issues">反馈问题</a>
+<a href="https://github.com/nini818726/ariel-claude-backup/issues">反馈问题</a>
 </p>
 
 </div>
@@ -29,7 +29,7 @@
 > **一句话装好：** 复制下面这句话，发给 Claude 桌面 app 的 Code 页就行。
 >
 > ```
-> 帮我装上这个：https://github.com/kkkariel888/ariel-claude-backup
+> 帮我装上这个：https://github.com/nini818726/ariel-claude-backup
 > ```
 >
 > 装好后它会帮你开始备份。以后作者每次更新，你那边自动变成最新版。
@@ -104,7 +104,7 @@ Claude 的对话是**跟账号绑在一起**的。换一个账号，左边的对
 把这句话发给 Claude 桌面 app 的 Code 页：
 
 ```
-帮我装上这个：https://github.com/kkkariel888/ariel-claude-backup
+帮我装上这个：https://github.com/nini818726/ariel-claude-backup
 ```
 
 AI 会照仓库里的 [INSTALL.md](INSTALL.md) 一口气装好，然后直接开始第一次备份。
@@ -122,7 +122,7 @@ AI 会照仓库里的 [INSTALL.md](INSTALL.md) 一口气装好，然后直接开
 在 Code 页依次输入：
 
 ```
-/plugin marketplace add kkkariel888/ariel-claude-backup
+/plugin marketplace add nini818726/ariel-claude-backup
 /plugin install ariel-claude-backup@ariel-claude-backup
 ```
 
@@ -287,7 +287,7 @@ Claude 是靠文件夹的**完整路径**记住「这个对话在哪个文件夹
 - [ ] 在全新电脑上从安装到恢复的完整实测
 - [ ] Windows 支持
 
-想要什么功能，欢迎到 [Issues](https://github.com/kkkariel888/ariel-claude-backup/issues) 提。
+想要什么功能，欢迎到 [Issues](https://github.com/nini818726/ariel-claude-backup/issues) 提。
 
 <p align="right">(<a href="#readme-top">回到顶部</a>)</p>
 
@@ -295,7 +295,7 @@ Claude 是靠文件夹的**完整路径**记住「这个对话在哪个文件夹
 
 欢迎提建议、报问题、改代码：
 
-1. 到 [Issues](https://github.com/kkkariel888/ariel-claude-backup/issues) 说说你遇到的问题或想法
+1. 到 [Issues](https://github.com/nini818726/ariel-claude-backup/issues) 说说你遇到的问题或想法
 2. 想直接改：Fork 这个仓库 → 新建分支 → 改好后提 Pull Request（合并申请）
 
 <p align="right">(<a href="#readme-top">回到顶部</a>)</p>
