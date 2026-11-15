@@ -1,0 +1,7 @@
+{
+  "name": "ariel-claude-backup",
+  "owner": { "name": "Ariel" },
+  "plugins": [
+    { "name": "ariel-claude-backup", "source": "./plugins/ariel-claude-backup", "description": "Back up and restore Claude Code conversations across accounts and computers." }
+  ]
+}
