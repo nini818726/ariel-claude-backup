@@ -8,7 +8,7 @@
 它每 10 分钟悄悄把你 Claude 里的工作备份到你自己的 GitHub 私有仓库。换号那天说一句话，以前的对话全回来，点进去接着聊。</p>
 
 <p>
-<img alt="版本" src="https://img.shields.io/badge/version-1.0.1-blue?style=flat-square">
+<img alt="版本" src="https://img.shields.io/badge/version-1.0.3-blue?style=flat-square">
 <img alt="Claude" src="https://img.shields.io/badge/Claude-桌面%20app%20Code%20页-D97757?style=flat-square">
 <img alt="macOS" src="https://img.shields.io/badge/系统-macOS-000000?style=flat-square">
 <img alt="License" src="https://img.shields.io/github/license/nini818726/ariel-claude-backup?style=flat-square">
@@ -218,6 +218,21 @@ Claude 是靠文件夹的**完整路径**记住「这个对话在哪个文件夹
 <p align="right">(<a href="#readme-top">回到顶部</a>)</p>
 
 ## 常见问题
+
+<details>
+<summary><strong>状态行显示「⚠️ N 个未备份（太大，等你决定）」是什么意思？</strong></summary>
+
+GitHub 不收超过 100 MB 的文件，有的对话（比如做视频、带很多截图的）会超过。备份不会悄悄跳过它们：先不上传，在状态行提醒你，其他对话照常备份。
+
+新开一个对话，截图发给 Claude，或者说「处理未备份的」。Claude 会列出每个是什么对话、多大，你逐个选：
+
+- **压缩上传**：压小了传上去，太大就切块，恢复时自动拼回原样
+- **不上传**：电脑上照样留着，只是不传 GitHub，以后不再提醒
+- **删掉**：移到废纸篓，能拿回来
+
+A 号、B 号共用同一份备份，选一次两边都算数。
+
+</details>
 
 <details>
 <summary><strong>会花我的 Claude token 吗？</strong></summary>

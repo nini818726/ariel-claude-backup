@@ -5,6 +5,7 @@ Stdlib only, Python 3.8+. Subcommands: init, backup, restore, schedule, unschedu
 Design notes live in ../references/design.md.
 """
 import argparse
+import glob
 import json
 import os
 import platform
@@ -1082,14 +1083,39 @@ class Scrubber:
 
 INC = {"on": False, "old": {}, "new": {}, "produced": set(), "changed": []}
 
+# Conversations too big for GitHub wait for the person to decide: compress / skip / delete.
+BIG_FILE = os.path.join(STATE_DIR, "big-files.json")   # {"<file name>": {"choice": "compress"|"skip", ...}}
+BIG_PENDING = []                                       # filled while packing, written to status.json
+PART = 90 * 1024 * 1024
+
+
+def big_id(path):
+    """Conversations are named by their own id; any other file by where it is."""
+    return os.path.basename(path) if path.endswith(".jsonl") else os.path.abspath(path)
+
+
+def big_choices():
+    return load_json(BIG_FILE, {}) or {}
+
+
+def _big_outputs(dest):
+    d = os.path.dirname(dest)
+    base = os.path.basename(dest)
+    if not os.path.isdir(d):
+        return []
+    return [os.path.join(d, n) for n in os.listdir(d)
+            if n == base + ".gz" or (n.startswith(base + ".gz.part") and n[len(base) + 8:].isdigit())]
+
 
 def _pack_file(sc, src, dest, kind, mt, key):
     st = os.stat(src)
     sig = [st.st_mtime_ns, st.st_size]
     INC["produced"].add(key)
     mt[key] = int(st.st_mtime)
-    if INC["on"] and INC["old"].get(key) == sig and os.path.exists(dest):
+    if INC["on"] and INC["old"].get(key) == sig and (os.path.exists(dest) or _big_outputs(dest)):
         INC["new"][key] = sig
+        for o in _big_outputs(dest):
+            INC["produced"].add(key[:-len(os.path.basename(dest))] + os.path.basename(o))
         return True  # unchanged since last pack: the scrubbed copy is still right
     ok = _pack_file_now(sc, src, dest, kind, mt, key)
     if ok:
@@ -1099,8 +1125,13 @@ def _pack_file(sc, src, dest, kind, mt, key):
 
 
 def _pack_file_now(sc, src, dest, kind, mt, key):
-    if os.path.getsize(src) > MAX_FILE:
-        log("  ! skipped (over GitHub's 100 MB file limit): %s" % key)
+    big = os.path.getsize(src) > MAX_FILE
+    choice = (big_choices().get(big_id(src)) or {}).get("choice") if big else None
+    if big and choice == "skip":
+        return True   # the person said: don't upload this one
+    if big and choice != "compress":
+        BIG_PENDING.append({"name": big_id(src), "path": src, "mb": os.path.getsize(src) >> 20})
+        log("  ! waiting for your decision (over GitHub's 100 MB limit): %s" % key)
         return True
     with open(src, "rb") as f:
         raw = f.read()
@@ -1132,8 +1163,24 @@ def _pack_file_now(sc, src, dest, kind, mt, key):
     elif any(x.encode() in raw for x in sc.accts + sc.orgs + sc.emails):
         return False   # binary file that names the old account: leave it behind
     os.makedirs(os.path.dirname(dest), exist_ok=True)
-    with open(dest, "wb") as f:
-        f.write(raw)
+    for old in _big_outputs(dest):
+        os.remove(old)
+    if big:   # compress, and cut into parts if it is still too big
+        import gzip
+        z = gzip.compress(raw, compresslevel=9, mtime=0)
+        if os.path.exists(dest):
+            os.remove(dest)
+        if len(z) <= MAX_FILE:
+            outs = [(dest + ".gz", z)]
+        else:
+            outs = [(dest + ".gz.part%03d" % i, z[o:o + PART]) for i, o in enumerate(range(0, len(z), PART))]
+        for path, chunk in outs:
+            with open(path, "wb") as f:
+                f.write(chunk)
+            INC["produced"].add(key[:-len(os.path.basename(dest))] + os.path.basename(path))
+    else:
+        with open(dest, "wb") as f:
+            f.write(raw)
     mt[key] = int(os.stat(src).st_mtime)
     return True
 
@@ -1466,6 +1513,23 @@ def cmd_unpack(a):
     for full, rel in walk(src):
         if rel.startswith("tool/") or rel in ("pack-manifest.json", "claude.json") or rel.endswith(".command"):
             continue
+        if re.search(r"\.gz\.part\d{3}$", rel) and not rel.endswith(".part000"):
+            continue   # read together with part000
+        packed = None
+        if rel.endswith(".gz") or rel.endswith(".gz.part000"):
+            import gzip
+            stem = rel[:-3] if rel.endswith(".gz") else rel[:-11]
+            if rel.endswith(".gz"):
+                with open(full, "rb") as f:
+                    packed = gzip.decompress(f.read())
+            else:
+                buf, i = b"", 0
+                while os.path.exists(os.path.join(src, stem + ".gz.part%03d" % i)):
+                    with open(os.path.join(src, stem + ".gz.part%03d" % i), "rb") as f:
+                        buf += f.read()
+                    i += 1
+                packed = gzip.decompress(buf)
+            rel = stem
         frel = fix(rel)
         if frel.startswith("claude-home/"):
             r = frel[len("claude-home/"):]
@@ -1481,8 +1545,11 @@ def cmd_unpack(a):
                                                  "claude_desktop_config.json"):
             skipped += 1
             continue
-        with open(full, "rb") as f:
-            raw = f.read()
+        if packed is not None:
+            raw = packed
+        else:
+            with open(full, "rb") as f:
+                raw = f.read()
         if not rel.startswith("claude-home/" + SELF_SKILL):
             try:
                 raw = fix(raw.decode("utf-8")).encode("utf-8")
@@ -1557,7 +1624,8 @@ def write_status(ok, changed=0, note=""):
                "repo": remote_url() if os.path.isdir(os.path.join(REPO_DIR, ".git")) else "",
                "conversations_local": count_sessions(CLAUDE_DIR),
                "conversations_backup": count_sessions(os.path.join(REPO_DIR, "claude-home")),
-               "every_minutes": 10})
+               "every_minutes": 10,
+               "too_big": [{"name": b["name"], "path": b["path"], "mb": b["mb"]} for b in BIG_PENDING]})
     if ok:
         st["last_success"] = now
     st["unpushed_commits"] = None
@@ -1581,6 +1649,45 @@ def use_system_proxy():
             os.environ["HTTPS_PROXY"] = os.environ["HTTP_PROXY"] = url
             os.environ["ALL_PROXY"] = url
             return
+
+
+def cmd_big(a):
+    """List files too big for GitHub, or record what to do with one (name = what `big list` shows)."""
+    ch = big_choices()
+    st = load_json(STATUS_FILE, {}) or {}
+    waiting = st.get("too_big") or []
+    if a.action == "list":
+        print(json.dumps({"waiting": waiting, "decided": ch}, ensure_ascii=False, indent=2))
+        return
+    if not a.name:
+        raise SystemExit("give the name `big list` shows")
+    name = a.name
+    if "/" not in name and not name.endswith(".jsonl"):
+        name += ".jsonl"
+    paths = [b.get("path") for b in waiting if b["name"] == name and b.get("path")]
+    if not paths:
+        paths = glob.glob(os.path.join(CLAUDE_DIR, "projects", "*", name)) if name.endswith(".jsonl") and "/" not in name \
+            else ([name] if os.path.exists(name) else [])
+    if a.action == "delete":
+        if not paths:
+            raise SystemExit("not found: %s" % name)
+        trash = os.path.expanduser("~/.Trash")
+        for h in paths:
+            dst = os.path.join(trash, os.path.basename(h))
+            if os.path.exists(dst):
+                dst = os.path.join(trash, "%s-%s" % (time.strftime("%H%M%S"), os.path.basename(h)))
+            shutil.move(h, dst)
+            side = h[:-len(".jsonl")] if h.endswith(".jsonl") else None  # a conversation's own folder
+            if side and os.path.isdir(side):
+                shutil.move(side, dst[:-len(".jsonl")])
+        ch.pop(name, None)
+        log("moved to Trash: %s" % name)
+    else:
+        ch[name] = {"choice": a.action, "at": time.strftime("%Y-%m-%d %H:%M")}
+    save_json(BIG_FILE, ch)
+    st["too_big"] = [b for b in waiting if b["name"] != name]
+    save_json(STATUS_FILE, st)
+    print("ok: %s → %s" % (name, a.action))
 
 
 def cmd_sync(a):
@@ -1735,6 +1842,8 @@ def main():
     p.add_argument("--every", type=int, default=10, help="minutes between runs; 0 = once a day at --time"); p.set_defaults(f=cmd_schedule)
     p = sub.add_parser("unschedule"); p.set_defaults(f=cmd_unschedule)
     p = sub.add_parser("status"); p.set_defaults(f=cmd_status)
+    p = sub.add_parser("big"); p.add_argument("action", choices=["list", "compress", "skip", "delete"])
+    p.add_argument("name", nargs="?"); p.set_defaults(f=cmd_big)
     p = sub.add_parser("pack"); p.add_argument("--out", required=True)
     p.add_argument("--overwrite", action="store_true"); p.set_defaults(f=cmd_pack)
     p = sub.add_parser("verify"); p.add_argument("dir"); p.set_defaults(f=cmd_verify)

@@ -1,6 +1,6 @@
 {
   "name": "ariel-claude-backup",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Back up every Claude Code conversation, setting, skill and plugin to your own private GitHub repo, restore it after switching accounts or computers, and keep conversations linked when folders move. Shows the backup status under the prompt.",
   "author": { "name": "Ariel" },
   "license": "MIT"

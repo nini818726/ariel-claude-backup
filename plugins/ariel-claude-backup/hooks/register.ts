@@ -7,6 +7,7 @@ type Status = {
   last_success?: string
   conversations_local?: number
   every_minutes?: number
+  too_big?: { name: string; mb: number }[]
 }
 
 const hhmm = (t?: string) => (t ? t.slice(11, 16) : '?')
@@ -19,6 +20,8 @@ export function describe(s: Status | undefined, now: number): string {
   if (s.note && s.ok && /folder moved/.test(s.note)) return '📁 文件夹已对上新位置，退出 Claude 再打开就好'
   if (!s.ok) return `⚠️ 上传失败，${every} 分钟后自动重试 · 上次成功 ${hhmm(s.last_success)}`
   if (stale) return `⚠️ 已经很久没备份了 · 上次成功 ${hhmm(s.last_success)}`
+  const big = s.too_big?.length ?? 0
+  if (big > 0) return `⚠️ ${big} 个未备份（太大，等你决定）· ${hhmm(s.last_success)} 同步过 · ${s.conversations_local ?? 0} 个对话`
   return `☁️ 备份正常 · ${hhmm(s.last_success)} 同步过 · ${s.conversations_local ?? 0} 个对话`
 }
 
