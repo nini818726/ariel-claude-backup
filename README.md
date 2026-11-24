@@ -8,7 +8,7 @@
 它每 10 分钟悄悄把你 Claude 里的工作备份到你自己的 GitHub 私有仓库。换号那天说一句话，以前的对话全回来，点进去接着聊。</p>
 
 <p>
-<img alt="版本" src="https://img.shields.io/badge/version-1.0.3-blue?style=flat-square">
+<img alt="版本" src="https://img.shields.io/badge/version-1.0.4-blue?style=flat-square">
 <img alt="Claude" src="https://img.shields.io/badge/Claude-桌面%20app%20Code%20页-D97757?style=flat-square">
 <img alt="macOS" src="https://img.shields.io/badge/系统-macOS-000000?style=flat-square">
 <img alt="License" src="https://img.shields.io/github/license/nini818726/ariel-claude-backup?style=flat-square">
@@ -218,6 +218,13 @@ Claude 是靠文件夹的**完整路径**记住「这个对话在哪个文件夹
 <p align="right">(<a href="#readme-top">回到顶部</a>)</p>
 
 ## 常见问题
+
+<details>
+<summary><strong>备份会不会越来越占硬盘？</strong></summary>
+
+不会一直涨。备份程序每天自动整理一次：本机只留最近约 150 个版本（大约一天），更早的全在 GitHub 上，一个不少；剩下的压缩打包。本机一般占 3G 左右，大头是你所有对话的一份副本。
+
+</details>
 
 <details>
 <summary><strong>状态行显示「⚠️ N 个未备份（太大，等你决定）」是什么意思？</strong></summary>

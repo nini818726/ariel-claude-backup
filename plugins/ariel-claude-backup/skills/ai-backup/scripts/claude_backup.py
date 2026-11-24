@@ -1690,6 +1690,38 @@ def cmd_big(a):
     print("ok: %s → %s" % (name, a.action))
 
 
+KEEP_LOCAL = 150   # versions kept on this Mac; GitHub keeps all of them
+
+
+def tidy_repo(force=False):
+    """Once a day: drop leftovers of an interrupted compress, keep only recent versions on this Mac
+    (everything is already on GitHub) and compress the rest. Saves gigabytes over time."""
+    stamp = os.path.join(STATE_DIR, "last-tidy")
+    today = time.strftime("%Y-%m-%d")
+    if not force and os.path.exists(stamp) and open(stamp).read().strip() == today:
+        return
+    for g in glob.glob(os.path.join(REPO_DIR, ".git", "objects", "pack", "tmp_*")):
+        os.remove(g)
+    ahead = (git("rev-list", "--count", "@{u}..HEAD", check=False).stdout or "").strip()
+    total = (git("rev-list", "--count", "HEAD", check=False).stdout or "").strip()
+    if ahead == "0" and total.isdigit() and int(total) > KEEP_LOCAL * 2:
+        cut = git("rev-parse", "HEAD~%d" % KEEP_LOCAL).stdout.strip()
+        with open(os.path.join(REPO_DIR, ".git", "shallow"), "w") as f:
+            f.write(cut + "\n")
+        git("reflog", "expire", "--expire=now", "--all", check=False)
+    git("gc", "-q", "--prune=now", check=False)
+    for g in ("commit-graph", "commit-graphs"):
+        p = os.path.join(REPO_DIR, ".git", "objects", "info", g)
+        if os.path.isdir(p):
+            shutil.rmtree(p)
+        elif os.path.exists(p):
+            os.remove(p)
+    git("commit-graph", "write", "--reachable", check=False)
+    with open(stamp, "w") as f:
+        f.write(today)
+    log("✓ daily tidy done (local copy keeps the last %d versions; GitHub keeps all)" % KEEP_LOCAL)
+
+
 def cmd_sync(a):
     need_repo()
     import fcntl
@@ -1737,7 +1769,7 @@ def cmd_sync(a):
     if changed:
         git("commit", "-q", "-m", "backup %s · %d files changed · %d conversations" % (
             time.strftime("%Y-%m-%d %H:%M"), len(changed), count_sessions(os.path.join(REPO_DIR, "claude-home"))))
-        git("gc", "--auto", "-q", check=False)
+
     pushed = getattr(a, "no_push", False)
     if not pushed:
         for wait in (0, 5, 15, 30):
@@ -1745,6 +1777,11 @@ def cmd_sync(a):
             if git("push", "-q", "-u", "origin", "HEAD", check=False).returncode == 0:
                 pushed = True
                 break
+    if pushed and not getattr(a, "no_push", False):
+        try:
+            tidy_repo()
+        except Exception as e:   # tidying must never break the backup
+            log("· daily tidy skipped: %s" % e)
     write_status(ok=bool(pushed), changed=len(changed),
                  note=("; ".join(moved_notes) + (" – reopen Claude to see it" if moved_notes else "")) if pushed
                  else "upload failed, will retry")
