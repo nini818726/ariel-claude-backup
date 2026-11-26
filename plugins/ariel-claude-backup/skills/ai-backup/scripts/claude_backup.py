@@ -1197,6 +1197,29 @@ def pack_salt():
         return f.read().strip()
 
 
+SWITCH_STATE = os.path.join(HOME, "Library", "Application Support", "Ariel Claude Switch", "state.json")
+
+
+def sidebar_account_map(sc):
+    """{label: {"files": [sidebar file names], "archived": text}} for every account on this Mac.
+    Labels are the names given in Ariel Claude Switch ("账号 A"), else "账号 1", "账号 2" ..."""
+    names = (load_json(SWITCH_STATE, {}) or {}).get("names") or {}
+    out = {}
+    for i, (acct, org) in enumerate(sorted(desktop_accounts(DESKTOP_DIR)), 1):
+        base = os.path.join(DESKTOP_DIR, "claude-code-sessions", acct, org)
+        files = sorted(f for f in os.listdir(base) if f.startswith("local_") and f.endswith(".json"))
+        label = names.get(acct) or "账号 %d" % i
+        if label in out:
+            label = "%s (%d)" % (label, i)
+        idx = os.path.join(base, "archived-sessions.idx")
+        arch = ""
+        if os.path.exists(idx):
+            with open(idx, encoding="utf-8", errors="replace") as f:
+                arch = sc.text(f.read())
+        out[label] = {"files": files, "archived": arch}
+    return out
+
+
 def cmd_pack(a):
     out = os.path.abspath(os.path.expanduser(a.out))
     if os.path.exists(os.path.join(out, "pack-manifest.json")) and not a.overwrite:
@@ -1269,6 +1292,16 @@ def cmd_pack(a):
                     n += 1
                 else:
                     left.append("scratch-workspaces/" + rel)
+    # which sidebar entries belong to which account: all accounts share one folder in the pack,
+    # so write the split down (by the names the person gave them, never the account ids)
+    amap = sidebar_account_map(sc)
+    if amap:
+        dest_rel = "desktop/sidebar-accounts.json"
+        save_json(os.path.join(out, dest_rel), amap)
+        INC["produced"].add(dest_rel)
+        if INC["old"].get(dest_rel) != json.dumps(amap, sort_keys=True):
+            INC["changed"].append(dest_rel)
+        INC["new"][dest_rel] = json.dumps(amap, sort_keys=True)
     cfg = os.path.join(DESKTOP_DIR, "claude_desktop_config.json")
     if os.path.isfile(cfg):
         _pack_file(sc, cfg, os.path.join(out, "desktop", "claude_desktop_config.json"), "config", mt,
@@ -1510,7 +1543,18 @@ def cmd_unpack(a):
     linked = {k for k, v in links.items() if os.path.exists(v)}
     mt = man.get("mtimes", {})
     wrote = skipped = 0
+    only_side = None
+    amap = load_json(os.path.join(src, "desktop", "sidebar-accounts.json"), None) or {}
+    if getattr(a, "account", None):
+        if a.account not in amap:
+            raise SystemExit("no account called %r in this backup. It has: %s" % (a.account, ", ".join(amap) or "none"))
+        only_side = set(amap[a.account]["files"])
     for full, rel in walk(src):
+        if only_side is not None and "/claude-code-sessions/" in rel and os.path.basename(rel).startswith("local_") \
+                and os.path.basename(rel) not in only_side:
+            continue
+        if rel == "desktop/sidebar-accounts.json":
+            continue
         if rel.startswith("tool/") or rel in ("pack-manifest.json", "claude.json") or rel.endswith(".command"):
             continue
         if re.search(r"\.gz\.part\d{3}$", rel) and not rel.endswith(".part000"):
@@ -1893,6 +1937,7 @@ def main():
     p.add_argument("--desktop-account"); p.set_defaults(f=cmd_adopt)
     p = sub.add_parser("has-old"); p.set_defaults(f=cmd_has_old)
     p = sub.add_parser("unpack"); p.add_argument("src"); p.add_argument("--desktop-account")
+    p.add_argument("--account", help="restore only this account's Code tab list, e.g. \"账号 A\" (see desktop/sidebar-accounts.json)")
     p.add_argument("--allow-running", action="store_true"); p.set_defaults(f=cmd_unpack)
     a = ap.parse_args()
     if not a.cmd:

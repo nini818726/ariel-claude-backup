@@ -8,7 +8,7 @@
 它每 10 分钟悄悄把你 Claude 里的工作备份到你自己的 GitHub 私有仓库。换号那天说一句话，以前的对话全回来，点进去接着聊。</p>
 
 <p>
-<img alt="版本" src="https://img.shields.io/badge/version-1.0.4-blue?style=flat-square">
+<img alt="版本" src="https://img.shields.io/badge/version-1.0.5-blue?style=flat-square">
 <img alt="Claude" src="https://img.shields.io/badge/Claude-桌面%20app%20Code%20页-D97757?style=flat-square">
 <img alt="macOS" src="https://img.shields.io/badge/系统-macOS-000000?style=flat-square">
 <img alt="License" src="https://img.shields.io/github/license/nini818726/ariel-claude-backup?style=flat-square">
